@@ -14,8 +14,7 @@ setup(
     install_requires=[
         "requests",
         "PyYAML",
-        "robotframework",
-        "concurrent.futures"
+        "robotframework"
     ],
     classifiers=[
         "Programming Language :: Python :: 3",
