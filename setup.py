@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="robotframework-testrail-sync",
-    version="0.0.7",
+    version="0.0.8",
     description="A tool to synchronize Robot Framework tests with TestRail",
     long_description=open('README.md').read(),
     long_description_content_type='text/markdown',
@@ -23,7 +23,7 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'robotestrail=main:main',
+            'robotestrail=src:main',
         ],
     },
     python_requires='>=3.6',
