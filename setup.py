@@ -2,14 +2,14 @@ from setuptools import setup, find_packages
 
 setup(
     name="robotframework-testrail-sync",
-    version="0.0.8",
+    version="0.0.9",
     description="A tool to synchronize Robot Framework tests with TestRail",
     long_description=open('README.md').read(),
     long_description_content_type='text/markdown',
     author="Viacheslav Shneidmillier",
     author_email="v.shneidmiller@gmail.com",
     url="https://github.com/vshneidmiller/robotframework-testrail-sync",
-    packages=find_packages(),
+    packages=find_packages(where="src"),
     include_package_data=True,
     install_requires=[
         "requests",
