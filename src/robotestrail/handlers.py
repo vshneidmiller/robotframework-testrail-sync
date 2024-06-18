@@ -1,6 +1,7 @@
 import os
-from logging_config import setup_logging
-from testrail_api import (
+from robotestrail.logging_config import setup_logging
+from robotestrail.robot_framework_utils import run_dryrun_and_get_tests, generate_csv_for_test_rail
+from robotestrail.testrail_api import (
     tr_get_test_cases,
     tr_add_section,
     tr_add_run_to_plan,
@@ -8,7 +9,7 @@ from testrail_api import (
     tr_get_projects
 )
 
-from testrail_utils import (
+from robotestrail.testrail_utils import (
     move_orphan_tests_to_orphan_folder,
     add_or_set_test_plan,
     set_test_results,
@@ -20,7 +21,7 @@ from testrail_utils import (
     update_tests_in_testrail,
 )
 
-from config import (
+from robotestrail.config import (
     PROJECT_NAME,
     TEST_SUITE_NAME,
     ROOT_TEST_SECTION_NAME,
@@ -45,7 +46,6 @@ from config import (
 
 import concurrent.futures
 from datetime import datetime
-from robot_framework_utils import run_dryrun_and_get_tests, generate_csv_for_test_rail
 
 # Initialize the logger for this module
 logger = setup_logging()

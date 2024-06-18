@@ -2,7 +2,7 @@ import os
 import csv
 from robot import run
 from robot.api import ExecutionResult, ResultVisitor
-from logging_config import setup_logging
+from robotestrail.logging_config import setup_logging
 
 # Initialize the logger for this module
 logger = setup_logging()

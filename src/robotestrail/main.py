@@ -1,5 +1,5 @@
-from config import initialize_config, read_config
-from logging_config import setup_logging
+from robotestrail.config import initialize_config, read_config
+from robotestrail.logging_config import setup_logging
 import argparse
 
 

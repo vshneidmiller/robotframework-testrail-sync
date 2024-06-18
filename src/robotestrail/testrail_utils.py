@@ -2,9 +2,9 @@ import os
 from collections import Counter
 import concurrent.futures
 
-from logging_config import setup_logging
-from robot_framework_utils import parse_robot_output_xml, get_rich_text_steps
-from testrail_api import (
+from robotestrail.logging_config import setup_logging
+from robotestrail.robot_framework_utils import parse_robot_output_xml, get_rich_text_steps
+from robotestrail.testrail_api import (
     tr_add_result_for_case,
     tr_add_section,
     tr_add_test_case,
@@ -21,7 +21,7 @@ from testrail_api import (
     get_testrail_status_by_robot_status
 )
 
-from config import (
+from robotestrail.config import (
     MAX_WORKERS,
     ROOT_TEST_SECTION_NAME,
     ROOT_TEST_SECTION_DISCLAIMER,
