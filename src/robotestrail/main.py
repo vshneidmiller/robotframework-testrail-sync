@@ -23,7 +23,7 @@ def main():
     
     # Initialize the TestRail API
 
-    from handlers import sync_robot_tests_to_testrail, add_new_test_results, show_milestones, check, generate_csv, create_config
+    from robotestrail.handlers import sync_robot_tests_to_testrail, add_new_test_results, show_milestones, check, generate_csv, create_config
     if args.sync:
         sync_robot_tests_to_testrail()
     elif args.results:
