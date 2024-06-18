@@ -9,8 +9,11 @@
 name: Upload Python Package
 
 on:
-  release:
-    types: [published]
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    # Allows this workflow to be manually triggered
 
 permissions:
   contents: read
