@@ -35,7 +35,7 @@ class TestSuiteVisitor(ResultVisitor):
             "suite_source": self.current_suite_source,
             "test_status": test.status,
             "test_documentation": test.doc,
-            "failure_message": self._get_failure_message(test)
+            "status_message": self._get_status_message(test)
         }
         self.test_cases.append(test_info)
 
@@ -65,8 +65,8 @@ class TestSuiteVisitor(ResultVisitor):
             suite = suite.parent
         return " > ".join(path_elements)
 
-    def _get_failure_message(self, test):
-        return test.message if test.status == 'FAIL' else None
+    def _get_status_message(self, test):
+        return test.message
 
 def parse_robot_output_xml(output_file):
         result = ExecutionResult(output_file)

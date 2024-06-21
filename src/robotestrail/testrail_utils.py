@@ -434,7 +434,9 @@ def process_test_result(test_result, tr_test_cases, test_run_id):
         test_case_id = get_tr_case_id_by_title(test_result["title"], tr_test_cases)
         status_id = get_testrail_status_by_robot_status(test_result["test_status"])
         logger.info(f"Test case: {test_result['title']} | Status: {status_id}")
-        comment = f"The test failed with the error:\n{test_result['failure_message']}"
+        comment = ""
+        if test_result['status_message']:
+            comment = test_result['status_message']
         tr_add_result_for_case(test_run_id, test_case_id, status_id, comment)
     except Exception as e:
         logger.exception(
