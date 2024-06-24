@@ -42,10 +42,21 @@ logger = setup_logging()
 # Handlers
 def get_project_by_name(name):
     projects = tr_get_projects()["projects"]
+
+    project_with_name = None
+
     for project in projects:
         if project["name"] == name:
-            return project
-    return None
+            project_with_name = project
+
+    if not project_with_name:
+        exception_message = f"Project with name '{name}' not found in TestRail\n\n"
+        exception_message += "\nAvailable projects:\n"
+        for project in projects:
+            exception_message += f"\n{project['name']}"
+        raise Exception(exception_message)
+    
+    return project_with_name
 
 
 def get_tr_case_id_by_title(title, test_cases):
