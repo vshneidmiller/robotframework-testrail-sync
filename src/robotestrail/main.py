@@ -1,3 +1,10 @@
+if __name__ == "__main__" and __package__ is None:
+    import sys
+    from os import path
+    sys.path.append(path.dirname(path.dirname(path.abspath(__file__))))
+    __package__ = "robotestrail"
+
+
 from robotestrail.config import initialize_config, read_config
 from robotestrail.logging_config import setup_logging
 import argparse
