@@ -1,11 +1,13 @@
 import os
 from robotestrail.logging_config import setup_logging
+from robotestrail.config_manager import ConfigManager
+import test_sync_manager
+import testrail_api_manager
 from robotestrail.robot_framework_utils import run_dryrun_and_get_tests, generate_csv_for_test_rail
 from robotestrail.testrail_api import (
     tr_get_test_cases,
     tr_add_section,
     tr_add_run_to_plan,
-    tr_get_milestones,
     tr_get_projects
 )
 
@@ -49,6 +51,17 @@ from datetime import datetime
 
 # Initialize the logger for this module
 logger = setup_logging()
+
+
+def sync_robot_tests_to_testrail_by_ids(config_path):
+    config = ConfigManager(config_path)
+    test_syncer_by_id = test_sync_manager.TestSyncManager(config)
+    test_syncer_by_id.sync_tests_by_id()
+
+def set_results_by_testrail_ids(config_path):
+    config = ConfigManager(config_path)
+    test_syncer_by_id = test_sync_manager.TestSyncManager(config)
+    test_syncer_by_id.set_results_by_id()
 
 
 def sync_robot_tests_to_testrail():
@@ -105,15 +118,10 @@ def add_new_test_results():
 def generate_csv():
     generate_csv_for_test_rail(PATH_TO_ROBOT_TESTS_FOLDER)
 
-def show_milestones():
-    project_id = get_project_by_name(PROJECT_NAME)["id"]
-    milestones = tr_get_milestones(project_id)
-    if not milestones:
-        print("No milestones found.")
-    else:
-        print(f'Milestones for the project "{PROJECT_NAME}":\n')
-        for milestone in milestones["milestones"]:
-            print(f"{milestone['name']} - {milestone['id']}")
+def show_milestones(config_path):
+    config = ConfigManager(config_path)
+    test_syncer = test_sync_manager.TestSyncManager(config)
+    test_syncer.show_milestones()
 
 def create_config():
     print("Creating a new config file with the default values...")

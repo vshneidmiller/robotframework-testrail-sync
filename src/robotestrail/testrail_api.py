@@ -59,11 +59,6 @@ def tr_get_testrail_data(endpoint):
         raise Exception(f"Failed to parse JSON response: {response.text}")
     return data
 
-def tr_get_milestones(project_id):
-    endpoint = f"get_milestones/{project_id}"
-    milestones = tr_get_testrail_data(endpoint)
-    logger.info(f"Retrieved {len(milestones)} milestones for project ID {project_id}")
-    return milestones
 
 def tr_get_projects():
     endpoint = f"get_projects"
@@ -367,4 +362,3 @@ def tr_add_result_for_case(run_id, case_id, status_id, comment=None, version=Non
         return result
     else:
         raise Exception(f"Failed to update test run result: {response.status_code} {response.text}")
-

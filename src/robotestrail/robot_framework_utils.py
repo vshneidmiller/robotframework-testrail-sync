@@ -1,4 +1,5 @@
 import os
+import re
 import csv
 from robot import run
 from robot.api import ExecutionResult, ResultVisitor
@@ -96,6 +97,99 @@ def run_dryrun_and_get_tests(path_to_tests, output_file):
         logger.error(f"Error: {output_file} : {e.strerror}")
 
     return test_cases
+
+def add_additional_info_to_parsed_robot_tests(robot_tests):
+    #add unique ID for each test case
+    for i, test in enumerate(robot_tests):
+        test["id"] = i
+
+    #add rich text steps for each test case
+    for test in robot_tests:
+        test["rich_text_steps"] = get_rich_text_steps(test["steps"])
+
+    # add formatted tags for each test case
+    for test in robot_tests:
+        test["formatted_tags"] = f'**[Tags]**\n{", ".join(test["tags"])}'
+
+    # set estimate, priority_id, type_id, milestone_id, refs for each test case
+    for test in robot_tests:
+        refs = []
+        estimate = None
+        milestone_id = None
+        for tag in test["tags"]:
+            tag = str(tag)
+            if tag.startswith("priority_id"):
+                test["priority_id"] = int(tag.split(":")[1])
+            elif tag.startswith("type_id"):
+                test["type_id"] = int(tag.split(":")[1])
+            elif tag.startswith("estimate"):
+                estimate = tag.split(":")[1]
+            elif tag.startswith("automation_type"):
+                test["custom_automation_type"] = int(tag.split(":")[1])
+            elif tag.startswith("milestone_id"):
+                milestone_id = int(tag.split(":")[1])
+            elif tag.startswith("refs"):
+                refs.append(tag.split(":")[1])
+            elif tag.startswith("jira"):
+                jira_ticket_link = tag.split(":")[1]
+                refs.append(jira_ticket_link)
+
+        test["refs"] = ", ".join(refs) if refs else None
+        test['estimate'] = estimate
+        test['milestone_id'] = milestone_id
+    
+    
+    #add tr_id to each test case with tag in format C123456
+    for test in robot_tests:
+        tr_ids = []
+        for tag in test["tags"]:
+            if re.match(r"C\d{2,9}", tag):
+                tr_ids.append(tag)
+        test["tr_ids"] = tr_ids
+
+    tests_with_multiple_tr_ids = []
+    tests_with_one_tr_id = []
+    tests_with_no_tr_id = []
+    
+    for test in robot_tests:
+        if "tr_ids" not in test:
+            tests_with_no_tr_id.append(test)
+        
+        if "tr_ids" in test:
+            if len(test["tr_ids"]) == 1:
+                tests_with_one_tr_id.append(test)
+            elif len(test["tr_ids"]) > 1:
+                tests_with_multiple_tr_ids.append(test)
+
+    # add information about duplicate TR ids
+    all_tr_ids = []
+    for test in robot_tests:
+        if test["tr_ids"]:
+            for tr_id in test["tr_ids"]:
+                all_tr_ids.append(tr_id)
+
+    test_ids_of_tests_with_multiple_tr_ids = [t["id"] for t in tests_with_multiple_tr_ids]
+    all_robot_test_ids = [t["id"] for t in robot_tests]
+
+    test_ids_of_tests_with_tr_ids = [t["id"] for t in robot_tests if "tr_id" in t]
+
+    test_ids_of_tests_without_tr_ids = list(set(all_robot_test_ids) - set(test_ids_of_tests_with_tr_ids))
+    tests_without_tr_id = [t for t in robot_tests if not t["tr_ids"]]
+
+    
+    tests_with_additional_info = {"tests": robot_tests,
+                                  "multiple_tr_ids": test_ids_of_tests_with_multiple_tr_ids,
+                                  "no_tr_id": test_ids_of_tests_without_tr_ids,
+                                  "tests_with_multiple_tr_ids": tests_with_multiple_tr_ids,
+                                  "tests_without_tr_id": tests_without_tr_id,
+                                  "tests_with_one_tr_id": tests_with_one_tr_id,
+                                  "all_tr_ids": all_tr_ids}
+    return tests_with_additional_info
+
+def run_dryrun_and_get_tests_with_additional_info(path_to_tests, output_file):
+    robot_tests = run_dryrun_and_get_tests(path_to_tests, output_file)
+    tests_with_additional_info = add_additional_info_to_parsed_robot_tests(robot_tests)
+    return tests_with_additional_info
 
 
 def get_rich_text_steps(steps):
