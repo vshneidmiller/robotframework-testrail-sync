@@ -1,7 +1,7 @@
 import os
 from robotestrail.logging_config import setup_logging
 from robotestrail.config_manager import ConfigManager
-from robotestrail import test_sync_manager
+from robotestrail.test_sync_manager import TestSyncManager
 from robotestrail.robot_framework_utils import run_dryrun_and_get_tests, generate_csv_for_test_rail
 from robotestrail.testrail_api import (
     tr_get_test_cases,
@@ -54,12 +54,12 @@ logger = setup_logging()
 
 def sync_robot_tests_to_testrail_by_ids(config_path):
     config = ConfigManager(config_path)
-    test_syncer_by_id = test_sync_manager.TestSyncManager(config)
+    test_syncer_by_id = TestSyncManager(config)
     test_syncer_by_id.sync_tests_by_id()
 
 def set_results_by_testrail_ids(config_path):
     config = ConfigManager(config_path)
-    test_syncer_by_id = test_sync_manager.TestSyncManager(config)
+    test_syncer_by_id = TestSyncManager(config)
     test_syncer_by_id.set_results_by_id()
 
 
@@ -119,7 +119,7 @@ def generate_csv():
 
 def show_milestones(config_path):
     config = ConfigManager(config_path)
-    test_syncer = test_sync_manager.TestSyncManager(config)
+    test_syncer = TestSyncManager(config)
     test_syncer.show_milestones()
 
 def create_config():

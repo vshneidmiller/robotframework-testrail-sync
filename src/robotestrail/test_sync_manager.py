@@ -1,7 +1,7 @@
 import re
 from collections import Counter
 from robotestrail.logging_config import *
-from robotestrail import testrail_api_manager
+from robotestrail.testrail_api_manager import TestRailApiManager
 from robot_framework_utils import run_dryrun_and_get_tests_with_additional_info, parse_robot_output_xml, add_additional_info_to_parsed_robot_tests
 from concurrent.futures import ThreadPoolExecutor
 from time import sleep
@@ -11,7 +11,7 @@ class TestSyncManager:
     def __init__(self, config):
         self.logger = setup_logging()
         self.config = config
-        self.tr_api = testrail_api_manager.TestRailApiManager(config)
+        self.tr_api = TestRailApiManager(config)
         self.logger.debug("TestSyncManager initialized")
 
     def _log_tests_without_tr_id(self, tests):
