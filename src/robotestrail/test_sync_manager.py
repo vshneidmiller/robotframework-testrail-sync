@@ -2,7 +2,7 @@ import re
 from collections import Counter
 from robotestrail.logging_config import *
 from robotestrail.testrail_api_manager import TestRailApiManager
-from robot_framework_utils import run_dryrun_and_get_tests_with_additional_info, parse_robot_output_xml, add_additional_info_to_parsed_robot_tests
+from robotestrail.robot_framework_utils import run_dryrun_and_get_tests_with_additional_info, parse_robot_output_xml, add_additional_info_to_parsed_robot_tests
 from concurrent.futures import ThreadPoolExecutor
 from time import sleep
 from datetime import datetime
