@@ -1,7 +1,7 @@
 import re
 from collections import Counter
 from robotestrail.logging_config import *
-import testrail_api_manager
+import robotestrail.testrail_api_manager as testrail_api_manager
 from robot_framework_utils import run_dryrun_and_get_tests_with_additional_info, parse_robot_output_xml, add_additional_info_to_parsed_robot_tests
 from concurrent.futures import ThreadPoolExecutor
 from time import sleep
