@@ -1,6 +1,6 @@
 import os
 import requests
-from logging_config import setup_logging
+from robotestrail.logging_config import setup_logging
 
 
 class TestRailApiManager:
