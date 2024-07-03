@@ -1,8 +1,7 @@
 import os
 from robotestrail.logging_config import setup_logging
 from robotestrail.config_manager import ConfigManager
-import robotestrail.test_sync_manager as test_sync_manager
-import robotestrail.testrail_api_manager as testrail_api_manager
+from robotestrail import test_sync_manager
 from robotestrail.robot_framework_utils import run_dryrun_and_get_tests, generate_csv_for_test_rail
 from robotestrail.testrail_api import (
     tr_get_test_cases,
