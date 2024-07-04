@@ -19,7 +19,7 @@ class TestRailApiManager:
         self.logger.debug(response.json())
         projects = response.json()['projects']
         for project in projects:
-            if project['name'] == self.config.get_config()['project']['name']:
+            if project['name'] == self.config.get_project_name():
                 return project['id']
         return None
     
@@ -123,7 +123,8 @@ class TestRailApiManager:
         headers = {"Content-Type": "application/json"}
         response = requests.post(url, auth=(self.user, self.api_key), headers=headers, json=payload)
         if response.status_code == 200:
-            self.logger.debug(f"Results added to test run: {run_id}")
+            self.logger.info(f"Results added to test run: {run_id}")
+            self.logger.debug(f"Response: {response.json()}")
         else:
             self.logger.error(f"Failed to add results to test run: {run_id} | Status Code: {response.status_code} | Response: {response.text}")
             raise Exception(

@@ -6,6 +6,7 @@ from robotestrail.robot_framework_utils import run_dryrun_and_get_tests_with_add
 from concurrent.futures import ThreadPoolExecutor
 from time import sleep
 from datetime import datetime
+import json
 
 class TestSyncManager:
     def __init__(self, config):
@@ -127,23 +128,34 @@ class TestSyncManager:
         robot_tests = parse_robot_output_xml(output_file_path)
         robot_tests = add_additional_info_to_parsed_robot_tests(robot_tests)
         test_plan = self.tr_api.get_tr_test_plan_by_name(project_id, self.config.get_test_plan_name())
+
         #add test run to test plan
         suite = self.tr_api.get_tr_suite_by_name(project_id, self.config.get_test_suite())
         test_run_name = f"{self.config.get_test_run_name()} - {datetime.now().strftime('%Y-%m-%d %H:%M')}"
-        test_run = self.tr_api.add_run_to_plan(plan_id=test_plan['id'], 
-                                               suite_id=suite['id'],
-                                               name=test_run_name,
-                                               description="test_description", 
-                                               case_ids=all_case_ids)
+        
+        try:
+            test_run = self.tr_api.add_run_to_plan(plan_id=test_plan['id'], 
+                                                   suite_id=suite['id'],
+                                                   name=test_run_name,
+                                                   description="test_description", 
+                                                   case_ids=all_case_ids)
+        except Exception as e:
+            self.logger.error(f"Project '{self.config.get_project_name()}' does not have test plan with name '{self.config.get_test_plan_name()}'\nError adding test run to test plan: {e}")
+            return
 
         results = []
+        self.logger.info(f"Adding results to test run '{test_run_name}'")
         for test in robot_tests['tests']:
 
             for tr_id in test['tr_ids']:
+                formatted_elapsed = f"{str(round(test.get('elapsedtime', 0)/1000))}s"
+                if formatted_elapsed == '0s':
+                    formatted_elapsed = None
+
                 case_id = str(tr_id)[1:]
                 status_id = self._get_testrail_status_by_robot_status(test['test_status'])
-                comment = test.get('message') or None
-                elapsed = test.get('elapsed') or None
+                comment = test.get('status_message') or None
+                elapsed = formatted_elapsed or None
                 version = test.get('version') or None
                 defects = test.get('defects') or None
                 assignedto_id = test.get('assignedto_id') or None

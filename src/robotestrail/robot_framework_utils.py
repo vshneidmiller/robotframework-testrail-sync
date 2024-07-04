@@ -4,6 +4,7 @@ import csv
 from robot import run
 from robot.api import ExecutionResult, ResultVisitor
 from robotestrail.logging_config import setup_logging
+import json
 
 # Initialize the logger for this module
 logger = setup_logging()
@@ -36,7 +37,8 @@ class TestSuiteVisitor(ResultVisitor):
             "suite_source": self.current_suite_source,
             "test_status": test.status,
             "test_documentation": test.doc,
-            "status_message": self._get_status_message(test)
+            "status_message": test.message,
+            "elapsedtime": test.elapsedtime,
         }
         self.test_cases.append(test_info)
 
@@ -66,13 +68,16 @@ class TestSuiteVisitor(ResultVisitor):
             suite = suite.parent
         return " > ".join(path_elements)
 
-    def _get_status_message(self, test):
-        return test.message
 
 def parse_robot_output_xml(output_file):
         result = ExecutionResult(output_file)
         visitor = TestSuiteVisitor()
         result.visit(visitor)
+        
+        #write to json
+        with open('test_cases.json', 'w') as json_file:
+            json.dump(visitor.test_cases, json_file, indent=4)
+
         return visitor.test_cases
 
 def run_robot_dryrun(output_file, path_to_tests):
@@ -114,27 +119,35 @@ def add_additional_info_to_parsed_robot_tests(robot_tests):
     # set estimate, priority_id, type_id, milestone_id, refs for each test case
     for test in robot_tests:
         refs = []
+        defects = []
         estimate = None
         milestone_id = None
         for tag in test["tags"]:
-            tag = str(tag)
-            if tag.startswith("priority_id"):
-                test["priority_id"] = int(tag.split(":")[1])
-            elif tag.startswith("type_id"):
-                test["type_id"] = int(tag.split(":")[1])
-            elif tag.startswith("estimate"):
-                estimate = tag.split(":")[1]
-            elif tag.startswith("automation_type"):
-                test["custom_automation_type"] = int(tag.split(":")[1])
-            elif tag.startswith("milestone_id"):
-                milestone_id = int(tag.split(":")[1])
-            elif tag.startswith("refs"):
-                refs.append(tag.split(":")[1])
-            elif tag.startswith("jira"):
-                jira_ticket_link = tag.split(":")[1]
-                refs.append(jira_ticket_link)
+            try:
+                tag = str(tag)
+                if tag.startswith("priority_id"):
+                    test["priority_id"] = int(tag.split(":")[1])
+                elif tag.startswith("type_id"):
+                    test["type_id"] = int(tag.split(":")[1])
+                elif tag.startswith("estimate"):
+                    estimate = tag.split(":")[1]
+                elif tag.startswith("automation_type"):
+                    test["custom_automation_type"] = int(tag.split(":")[1])
+                elif tag.startswith("milestone_id"):
+                    milestone_id = int(tag.split(":")[1])
+                elif tag.startswith("refs"):
+                    refs.append(tag.split(":")[1])
+                elif tag.startswith("jira"):
+                    refs.append(tag.split(":")[1])
+                elif tag.startswith("defect"):
+                    defects.append(tag.split(":")[1])
+                elif tag.startswith("bug"):
+                    defects.append(tag.split(":")[1])
+            except Exception as e:
+                logger.error(f"Unable to parse tag: '{tag}' ] Error: {e}")
 
         test["refs"] = ", ".join(refs) if refs else None
+        test["defects"] = ", ".join(defects) if defects else None
         test['estimate'] = estimate
         test['milestone_id'] = milestone_id
     
