@@ -185,3 +185,140 @@ class TestRailApiManager:
         self.logger.debug(response.json())
         return response.json()
     
+    def get_cases(self, project_id, suite_id):
+        url = f"{self.base_url}/index.php?/api/v2/get_cases/{project_id}&suite_id={suite_id}"
+        response = requests.get(url, auth=(self.user, self.api_key))
+        response.raise_for_status()
+        self.logger.debug(response.json())
+        return response.json()
+    
+    def get_section_by_name(self, project_id, suite_id, name):
+        sections = self.get_sections(project_id, suite_id)["sections"]
+        for section in sections:
+            if section["name"] == name:
+                return section
+        return None
+    
+    def get_sections(self, project_id, suite_id):
+        url = f"{self.base_url}/index.php?/api/v2/get_sections/{project_id}&suite_id={suite_id}"
+        response = requests.get(url, auth=(self.user, self.api_key))
+        response.raise_for_status()
+        self.logger.debug(response.json())
+        return response.json()
+        
+    def add_section(self, project_id, suite_id, section_name, parent_id=None, description=None):
+        url = f"{self.base_url}/index.php?/api/v2/add_section/{project_id}"
+        headers = {"Content-Type": "application/json"}
+        data = {
+            "suite_id": suite_id,
+            "name": section_name,
+            "description": description,  # Optional: Add a description to the section
+            "parent_id": parent_id,  # Optional: If adding a subsection, specify the parent section ID
+        }
+        response = requests.post(
+            url, auth=(self.user, self.api_key), headers=headers, json=data
+        )
+        if response.status_code == 200:
+            section = response.json()
+            self.logger.info(f"Section added: '{section_name}' with ID {section['id']}")
+            return section
+        else:
+            raise Exception(
+                f"Failed to add section: {response.status_code} {response.text}"
+            )
+        
+    def get_section_by_name_and_parent_id(self, project_id, suite_id, name, parent_id):
+        sections = self.get_sections(project_id, suite_id)["sections"]
+        for section in sections:
+            if section["name"] == name and section["parent_id"] == parent_id:
+                return section
+        return None
+    
+
+    def update_section(self, section_id, section_name, description=None):
+        url = f"{self.base_url}/index.php?/api/v2/update_section/{section_id}"
+        headers = {"Content-Type": "application/json"}
+        data = {
+            "name": section_name,
+            "description": description,
+        }
+        response = requests.post(
+            url, auth=(self.user, self.api_key), headers=headers, json=data
+        )
+        if response.status_code == 200:
+            section = response.json()
+            self.logger.info(f"Section updated: '{section_name}' | S{section['id']} | {section['description']}")
+            return section
+        else:
+            raise Exception(
+                f"Failed to update section: {response.status_code} {response.text}"
+            )
+        
+    def get_sections_with_formatted_path(self, project_id, suite_id):
+        sections = self.get_sections(project_id, suite_id)["sections"]
+        for section in sections:
+            if section["parent_id"] is None:
+                section["formatted_path"] = section["name"]
+            else:
+                parent_formatted_path = next(
+                    (
+                        s["formatted_path"]
+                        for s in sections
+                        if s["id"] == section["parent_id"]
+                    ),
+                    None,
+                )
+                section["formatted_path"] = f"{parent_formatted_path} > {section['name']}"
+        return sections
+    
+    def add_test_case(self, section_id, title, steps, custom_automation_type, refs=None, priority_id=None, type_id=None, estimate=None, milestone_id=None, preconditions=None):
+        url = f"{self.base_url}/index.php?/api/v2/add_case/{section_id}"
+        headers = {"Content-Type": "application/json"}
+        data = {
+            "title": title,
+            "custom_automation_type": custom_automation_type,
+            "custom_steps": steps,
+            "refs": refs,
+            "priority_id": priority_id,
+            "type_id": type_id,
+            "estimate": estimate,
+            "milestone_id": milestone_id,
+            "custom_preconds": preconditions
+        }
+        response = requests.post(url, auth=(self.user, self.api_key), headers=headers, json=data)
+        if response.status_code == 200:
+            case = response.json()
+            self.logger.info(f"Test case added: '{title}' | C{case['id']}")
+            return case
+        else:
+            raise Exception(
+                f"Failed to add test case: {response.status_code} {response.text}"
+            )
+        
+    def delete_section(self, section_id):
+        url = f"{self.base_url}/index.php?/api/v2/delete_section/{section_id}"
+        response = requests.post(url, auth=(self.user, self.api_key))
+        if response.status_code == 200:
+            self.logger.info(f"Section deleted: S{section_id}")
+        else:
+            raise Exception(
+                f"Failed to delete section: {response.status_code} {response.text}"
+            )
+    
+    def move_cases_to_section(self, suite_id, section_id, case_ids):
+        url = f"{self.base_url}/index.php?/api/v2/move_cases_to_section/{section_id}"
+        headers = {"Content-Type": "application/json"}
+        data = {
+            "suite_id": suite_id,
+            "case_ids": case_ids
+        }
+        response = requests.post(
+            url, auth=(self.user, self.api_key), headers=headers, json=data
+        )
+        if response.status_code == 200:
+            self.logger.info(f"Tests moved to ORPHAN: {case_ids}")
+        else:
+            raise Exception(
+                f"Failed to move tests: {response.status_code} {response.text}"
+            )
+        

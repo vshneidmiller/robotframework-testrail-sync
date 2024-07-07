@@ -1,8 +1,9 @@
 import re
+import os
 from collections import Counter
 from robotestrail.logging_config import *
 from robotestrail.testrail_api_manager import TestRailApiManager
-from robotestrail.robot_framework_utils import run_dryrun_and_get_tests_with_additional_info, parse_robot_output_xml, add_additional_info_to_parsed_robot_tests
+from robotestrail.robot_framework_utils import run_dryrun_and_get_tests_with_additional_info, parse_robot_output_xml, add_additional_info_to_parsed_robot_tests, get_rich_text_steps
 from concurrent.futures import ThreadPoolExecutor
 from time import sleep
 from datetime import datetime
@@ -129,6 +130,39 @@ class TestSyncManager:
             custom_automation_type = test["custom_automation_type"]
         return custom_automation_type
 
+    def add_new_test_results_by_name(self):
+        self.logger.info("Adding new test results to TestRail by name")
+        project_id = self.tr_api.get_project_id()
+        suite_id = self.tr_api.get_tr_suite_by_name(project_id, self.config.get_test_suite())['id']
+        test_plan = self.tr_api.get_tr_test_plan_by_name(project_id, self.config.get_test_plan_name())
+        test_run_name = f"{self.config.get_test_run_name()} - {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+        test_run = self.tr_api.add_run_to_plan(plan_id=test_plan['id'],
+                                               suite_id=suite_id,
+                                               name=test_run_name,
+                                               description=self.config.get_test_run_description(),
+                                               include_all=True)
+
+        # Set testrail test run results based on the robot output.xml file
+        self.set_test_results(project_id, suite_id, test_run['runs'][0]['id'], self.config.get_robot_output_xml_file_path())
+
+
+
+
+    def sync_robot_test_by_name(self):
+        self.logger.info("Syncing robot tests with the TestRail by name")
+        path_to_tests = self.config.get_robot_tests_folder_path()
+        root_section_name = self.config.get_root_test_section_name()
+        project_id = self.tr_api.get_project_id()
+        suite_id = self.tr_api.get_tr_suite_by_name(project_id, self.config.get_test_suite())['id']
+        existing_tr_tests = self.tr_api.get_cases(project_id, suite_id)['cases']
+        root_section = self.tr_api.get_section_by_name(project_id, suite_id, root_section_name)
+        if not root_section:
+            self.tr_api.add_section(project_id, suite_id, root_section_name)
+        robot_tests = run_dryrun_and_get_tests_with_additional_info(path_to_tests, 'dry_run_output.xml')
+        self.add_folders_to_testrail(project_id, suite_id, robot_tests, self.config.get_source_control_link())
+        self.add_tests_to_testrail(project_id, suite_id, existing_tr_tests, robot_tests)
+        self.update_tests_in_testrail(project_id, suite_id, existing_tr_tests, robot_tests)
+        self.move_orphan_tests_to_orphan_folder(project_id, suite_id, robot_tests)
 
     def sync_tests_by_id(self):
         self.logger.info("Starting test sync process")
@@ -402,3 +436,332 @@ class TestSyncManager:
                 return field["id"]
         return None
     
+    def add_folders_to_testrail(self, project_id, suite_id, robot_tests, source_control_link_root):
+        # Function to add all intermediate paths
+        def add_intermediate_paths(path, all_paths):
+            parts = path.split(" > ")
+            for i in range(1, len(parts)):
+                intermediate_path = " > ".join(parts[:i])
+                if intermediate_path not in all_paths:
+                    all_paths.append(intermediate_path)
+
+        def get_github_link_to_folder_file(formatted_path, formatted_pathes):
+            count = str(formatted_pathes).count(formatted_path)
+            if count > 1:
+                source_control_link = (
+                    f"{source_control_link_root}/{str(formatted_path).replace(' > ', os.sep)}"
+                )
+            else:
+                source_control_link = f"{source_control_link_root}/{str(formatted_path).replace(' > ', os.sep)}.robot"
+            return source_control_link
+
+        def get_parent_id_by_formatted_path(formatted_path):
+            sections = self.tr_api.get_sections(project_id, suite_id)["sections"]
+            local_path_list = formatted_path.split(" > ")
+            parent_id = None
+            for local_path in local_path_list:
+                matching_sections = [
+                    s
+                    for s in sections
+                    if s["name"] == local_path
+                    and (s["parent_id"] == parent_id or parent_id is None)
+                ]
+                if not matching_sections:
+                    return None
+                parent_id = matching_sections[0]["id"]
+            return parent_id
+
+        def create_sections(sections):
+            source_control_name = self.config.get_source_control_name()
+            for missing_path in sections:
+                parent_id = get_parent_id_by_formatted_path(
+                    missing_path.rsplit(" > ", 1)[0]
+                )
+                source_control_link = get_github_link_to_folder_file(
+                    missing_path, sorted_formatted_local_pathes
+                )
+                description = (
+                    f"Link to the {source_control_name}:\n{source_control_link}"
+                )
+                section_name = missing_path.split(">")[-1].strip()
+                self.tr_api.add_section(project_id, suite_id, section_name, parent_id, description)
+
+
+        def create_missing_sections():
+            missing_sections_pathes = []
+            for path in sorted_formatted_local_pathes:
+                if path not in [
+                    s["formatted_path"] for s in existing_sections_with_formatted_path
+                ]:
+                    missing_sections_pathes.append(path)
+            self.logger.info("Missing sections:\n%s", missing_sections_pathes)
+
+            levels = [[] for _ in range(6)]
+            for path in missing_sections_pathes:
+                levels[min(path.count(" > "), 5)].append(path)
+
+            for i, level in enumerate(levels):
+                if level:
+                    self.logger.info(f"Creating sections for level {i}:\n{level}")
+                    create_sections(level)
+
+        def update_existing_sections():
+            source_control_name = self.config.get_source_control_name()
+            root_test_section_name = self.config.get_root_test_section_name()
+            def update_section(existing_section_path):
+                try:
+                    parent_id = get_parent_id_by_formatted_path(
+                        existing_section_path.rsplit(" > ", 1)[0]
+                    )
+                    source_control_link = get_github_link_to_folder_file(
+                        existing_section_path, sorted_formatted_local_pathes
+                    )
+                    description = (
+                        f"Link to the {source_control_name}:\n{source_control_link}"
+                    )
+                    section_name = existing_section_path.split(">")[-1].strip()
+                    if existing_section_path == root_test_section_name:
+                        root_description = (
+                            f"{root_test_section_name}\n\n{description}"
+                        )
+                        section = self.tr_api.get_section_by_name(
+                            project_id, suite_id, root_test_section_name
+                        )
+                        self.logger.info(
+                            f"Updating root section: {section_name} with description: {root_description}"
+                        )
+                        self.tr_api.update_section(
+                            section["id"], section_name, description=root_description
+                        )
+                    else:
+                        section = self.tr_api.get_section_by_name_and_parent_id(
+                            project_id, suite_id, section_name, parent_id
+                        )
+                        self.logger.info(
+                            f"Updating section: {section_name} with description: {description}"
+                        )
+                        self.tr_api.update_section(
+                            section["id"], section_name, description=description
+                        )
+                except Exception as e:
+                    self.logger.error(f"Error updating section '{existing_section_path}': {e}")
+                    raise
+
+            existing_section_pathes = []
+            for path in sorted_formatted_local_pathes:
+                if path in [
+                    s["formatted_path"] for s in existing_sections_with_formatted_path
+                ]:
+                    existing_section_pathes.append(path)
+            self.logger.info("Existing sections:\n%s", existing_section_pathes)
+
+            for path in existing_section_pathes:
+                update_section(path)
+
+        #write robot tests to file:
+        with open('robot_tests.json', 'w') as json_file:
+            json.dump(robot_tests, json_file, indent=4)
+        
+        formatted_pathes = [test["formatted_path"] for test in robot_tests['tests']]
+        # Process each path and add intermediate paths
+        for path in formatted_pathes:
+            add_intermediate_paths(path, formatted_pathes)
+
+        # Remove duplicates and sort by length
+        sorted_formatted_local_pathes = sorted(list(set(formatted_pathes)), key=len)
+        existing_sections_with_formatted_path = self.tr_api.get_sections_with_formatted_path(
+            project_id, suite_id
+        )
+
+        create_missing_sections()
+        update_existing_sections()
+
+    def add_tests_to_testrail(self, project_id, suite_id, existing_tr_tests, robot_tests):
+
+
+        # If the test with the particular name exists locally but NOT in the TestRail, then it will be added to the tests_to_add list
+        
+        tests_to_add = []
+        for test in robot_tests['tests']:
+            if test["title"] not in [t["title"] for t in existing_tr_tests]:
+                tests_to_add.append(test)
+
+        tr_sections = self.get_sections_with_formatted_path(project_id, suite_id)
+
+        def add_test(test):
+            section_id = next(
+                (
+                    s["id"]
+                    for s in tr_sections
+                    if s["formatted_path"] == test["formatted_path"]
+                ),
+                None,
+            )
+            preconditions = f'**[Tags]**\n{str(test["tags"])}'
+
+            self.tr_api.add_test_case(
+                section_id = section_id,
+                title = test["title"],
+                steps=test["rich_text_steps"],
+                refs=test["refs"],
+                priority_id=self._get_priority_id(test),
+                custom_automation_type=self._get_custom_automation_type(test),
+                type_id=self._get_type_id(test),
+                estimate=test['estimate'],
+                milestone_id=test['milestone_id'],
+                preconditions=preconditions,
+            )
+            self.logger.info(f"Test added: {test['title']}")
+
+
+        #with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+        #    executor.map(add_test, tests_to_add)
+
+        #adding tests not in parallel
+        for test in tests_to_add:
+            add_test(test)
+
+
+    def update_tests_in_testrail(self, project_id, suite_id, existing_tr_tests, robot_tests):
+        # If the test with the particular name exists locally AND in the TestRail, then it will be added to the tests_to_update list
+        tests_to_update = [
+            test
+            for test in robot_tests['tests']
+            if test["title"] in [t["title"] for t in existing_tr_tests]
+        ]
+
+        tr_sections = self.get_sections_with_formatted_path(project_id, suite_id)
+
+        def update_test(test):
+            section_id = next(
+                (
+                    s["id"]
+                    for s in tr_sections
+                    if s["formatted_path"] == test["formatted_path"]
+                ),
+                None,
+            )
+            case_id = next(
+                (c["id"] for c in existing_tr_tests if c["title"] == test["title"]), None
+            )
+            preconditions = f'**[Tags]**\n{str(test["tags"])}'
+
+            self.tr_api.update_test_case(
+                case_id,
+                section_id = section_id,
+                title = test["title"],
+                steps=test["rich_text_steps"],
+                refs=test["refs"],
+                priority_id=self._get_priority_id(test),
+                custom_automation_type=self._get_custom_automation_type(test),
+                type_id=self._get_type_id(test),
+                estimate=test['estimate'],
+                milestone_id=test['milestone_id'],
+                preconditions=preconditions,
+            )
+        
+        if self.max_workers:
+            with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+                self.logger.info(f"Updating tests in TestRail\nThe following number of tests will be updated: {len(tests_to_update)}")
+                executor.map(update_test, tests_to_update)
+        else:
+            for test in tests_to_update:
+                update_test(test)
+
+
+    def move_orphan_tests_to_orphan_folder(self, project_id, suite_id, robot_tests):
+        # Define the name of the orphan folder
+        orphan_folder_name = self.config.get_orphan_test_section_name()
+        orphan_description = self.config.get_orphan_test_section_description()
+
+        existing_tr_tests = self.tr_api.get_cases(project_id, suite_id)["cases"]
+        robot_tests_titles = [t["title"] for t in robot_tests['tests']]
+        orphan_tests = []
+        for test in existing_tr_tests:
+            if test["title"] not in robot_tests_titles:
+                orphan_tests.append(test)
+
+        orphan_section = self.tr_api.get_section_by_name(project_id, suite_id, orphan_folder_name)
+        if not orphan_tests and not orphan_section:
+            pass
+        elif orphan_tests and not orphan_section:
+            self.tr_api.add_section(
+                project_id, suite_id, orphan_folder_name, description=orphan_description
+            )
+        elif not orphan_tests and orphan_section:
+            self.logger.info(
+                f'{orphan_folder_name} section is empty: {orphan_section["id"]} and there are no orphan tests. Deleting the section.'
+            )
+            self.tr_api.delete_section(orphan_section["id"])
+        else:
+            self.tr_api.update_section(orphan_section["id"], orphan_folder_name, orphan_description)
+
+        # Extract orphan test IDs
+        orphan_tests_ids = [
+            str(test["id"]) for test in orphan_tests
+        ]  # Convert IDs to strings for joining
+        formatted_tests_ids = ",".join(orphan_tests_ids)
+        test_ids_with_prefix = [f"C{test_id}" for test_id in orphan_tests_ids]
+
+        if orphan_tests:
+            self.logger.warning(f"ORPHAN tests: {test_ids_with_prefix}")
+            orphan_section = self.tr_api.get_section_by_name(project_id, suite_id, orphan_folder_name)
+            self.tr_api.move_cases_to_section(suite_id, orphan_section["id"], formatted_tests_ids)
+
+    
+    def get_sections_with_formatted_path(self, project_id, suite_id):
+        sections = self.tr_api.get_sections(project_id, suite_id)["sections"]
+        for section in sections:
+            if section["parent_id"] is None:
+                section["formatted_path"] = section["name"]
+            else:
+                parent_formatted_path = next(
+                    (
+                        s["formatted_path"]
+                        for s in sections
+                        if s["id"] == section["parent_id"]
+                    ),
+                    None,
+                )
+                section["formatted_path"] = f"{parent_formatted_path} > {section['name']}"
+
+        return sections
+    
+    def set_test_results(self, project_id, suite_id, test_run_id, output_file):
+        tr_test_cases = self.tr_api.get_cases(project_id, suite_id)
+        robot_tests = parse_robot_output_xml(output_file)
+        robot_tests = add_additional_info_to_parsed_robot_tests(robot_tests)
+
+        results = []
+        for test in robot_tests['tests']:
+            case_id = self._get_tr_case_id_by_title(test["title"], tr_test_cases)
+            status_id = self._get_testrail_status_by_robot_status(test['test_status'])
+            self.logger.info(f"Test case: {test['title']} | Status: {status_id}")
+            
+            formatted_elapsed = f"{str(round(test.get('elapsedtime', 0)/1000))}s"
+            if formatted_elapsed == '0s':
+                formatted_elapsed = 0
+            #milestone_id = self.config.get_test_run_milestone_id()
+
+            assignedto_id = None
+            if self.config.get_test_run_assignedto_email():
+                user = self.tr_api.get_user_by_email(self.config.get_test_run_assignedto_email())
+                assignedto_id = user['id']
+
+            status_id = self._get_testrail_status_by_robot_status(test['test_status'])
+            comment = test.get('status_message') or None
+            elapsed = formatted_elapsed or None
+            version = test.get('version') or None
+            defects = test.get('defects') or None
+            assignedto_id = assignedto_id or None
+            #milestone_id = milestone_id
+            results.append({"case_id": case_id, "status_id": status_id, "comment": comment, "elapsed": elapsed, "version": version, "defects": defects})
+        
+        self.tr_api.add_results_for_cases(test_run_id, {"results": results})
+            
+
+    def _get_tr_case_id_by_title(self, title, test_cases):
+        for case in test_cases["cases"]:
+            if case["title"] == title:
+                return case["id"]
+        return None

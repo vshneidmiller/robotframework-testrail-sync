@@ -90,9 +90,8 @@ class ConfigManager:
         return self.config.get('test_run', {}).get('refs', None)
     
     def get_test_suite(self):
-        return self.config['project']['suite_name']
+        return self.config.get('project', {}).get('suite_name', None)
     
-
     def get_root_test_section_name(self):
         return self.config['test_section']['root_name']
     

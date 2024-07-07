@@ -17,8 +17,10 @@ def main():
 
     parser = argparse.ArgumentParser(description='RoboTestRail - A tool to synchronize Robot Framework tests with TestRail')
     parser.add_argument('--sync', '-s', action='store_true', help='Sync Robot Framework tests with TestRail by name')
+    #parser.add_argument('--sync2', '-s2', action='store_true', help='Sync Robot Framework tests with TestRail by name')
     parser.add_argument('--sync_by_id', '-sbid', action='store_true', help='Sync Robot Framework tests with TestRail by test case IDs')
     parser.add_argument('--results', '-r', action='store_true', help='Upload test results to TestRail')
+    #parser.add_argument('--results2', '-r2', action='store_true', help='Upload test results to TestRail')
     parser.add_argument('--results_by_id', '-rbid', action='store_true', help='Upload test results to TestRail by test case IDs')
     parser.add_argument('--csv', action='store_true', help='Generate a CSV file withe the text cases. This CSV file can be imported to TestRail.')
     parser.add_argument('--info', '-i', action='store_true', help='Show TestRail information like milestones, users, fields, etc')
@@ -32,11 +34,15 @@ def main():
     
     # Initialize the TestRail API
 
-    from robotestrail.handlers import sync_robot_tests_to_testrail, add_new_test_results, show_info, check, generate_csv, create_config, sync_robot_tests_to_testrail_by_ids, set_results_by_testrail_ids
+    from robotestrail.handlers import show_info, check, generate_csv, create_config, sync_robot_tests_to_testrail_by_ids, set_results_by_testrail_ids, sync_robot_test_by_name, add_new_test_results_by_name
+    #if args.sync:
+    #    sync_robot_tests_to_testrail(args.config_path)
     if args.sync:
-        sync_robot_tests_to_testrail(args.config_path)
+        sync_robot_test_by_name(args.config_path)
+    #elif args.results:
+    #    add_new_test_results()
     elif args.results:
-        add_new_test_results()
+        add_new_test_results_by_name(args.config_path)
     elif args.info:
         show_info(args.config_path)
     elif args.csv:
