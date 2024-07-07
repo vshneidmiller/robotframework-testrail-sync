@@ -125,23 +125,33 @@ def add_additional_info_to_parsed_robot_tests(robot_tests):
         for tag in test["tags"]:
             try:
                 tag = str(tag)
-                if tag.startswith("priority_id"):
+                if tag.startswith("priority_id:"):
                     test["priority_id"] = int(tag.split(":")[1])
-                elif tag.startswith("type_id"):
+                if tag.startswith("priority:"):
+                    test["priority"] = tag.split(":")[1]
+                elif tag.startswith("type_id:"):
                     test["type_id"] = int(tag.split(":")[1])
-                elif tag.startswith("estimate"):
+                elif tag.startswith("type:"):
+                    test["type"] = tag.split(":")[1]
+                elif tag.startswith("estimate:"):
                     estimate = tag.split(":")[1]
-                elif tag.startswith("automation_type"):
+                elif tag.startswith("automation_type_id:"):
                     test["custom_automation_type"] = int(tag.split(":")[1])
-                elif tag.startswith("milestone_id"):
+                elif tag.startswith("automation_type:"):
+                    test["custom_automation_type"] = tag.split(":")[1]
+                elif tag.startswith("automatedby_id:"):
+                    test["custom_automatedby_id"] = int(tag.split(":")[1])
+                elif tag.startswith("customer:"):
+                    test["custom_customer"] = int(tag.split(":")[1])
+                elif tag.startswith("milestone_id:"):
                     milestone_id = int(tag.split(":")[1])
-                elif tag.startswith("refs"):
+                elif tag.startswith("refs:"):
                     refs.append(tag.split(":")[1])
-                elif tag.startswith("jira"):
+                elif tag.startswith("jira:"):
                     refs.append(tag.split(":")[1])
-                elif tag.startswith("defect"):
+                elif tag.startswith("defect:"):
                     defects.append(tag.split(":")[1])
-                elif tag.startswith("bug"):
+                elif tag.startswith("bug:"):
                     defects.append(tag.split(":")[1])
             except Exception as e:
                 logger.error(f"Unable to parse tag: '{tag}' ] Error: {e}")

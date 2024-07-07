@@ -30,14 +30,49 @@ class TestRailApiManager:
         self.logger.debug(response.json())
         return response.json()
     
+    def get_case_types(self):
+        url = f"{self.base_url}/index.php?/api/v2/get_case_types"
+        response = requests.get(url, auth=(self.user, self.api_key))
+        response.raise_for_status()
+        self.logger.debug(response.json())
+        return response.json()
+    
+    def get_priorities(self):
+        url = f"{self.base_url}/index.php?/api/v2/get_priorities"
+        response = requests.get(url, auth=(self.user, self.api_key))
+        response.raise_for_status()
+        self.logger.debug(response.json())
+        return response.json()
+    
+    def get_statuses(self):
+        url = f"{self.base_url}/index.php?/api/v2/get_statuses"
+        response = requests.get(url, auth=(self.user, self.api_key))
+        response.raise_for_status()
+        self.logger.debug(response.json())
+        return response.json()
+    
+    def get_result_fields(self):
+        url = f"{self.base_url}/index.php?/api/v2/get_result_fields"
+        response = requests.get(url, auth=(self.user, self.api_key))
+        response.raise_for_status()
+        self.logger.debug(response.json())
+        return response.json()
+
     def get_milestones(self, project_id):
         url = f"{self.base_url}/index.php?/api/v2/get_milestones/{project_id}"
         response = requests.get(url, auth=(self.user, self.api_key))
         response.raise_for_status()
         self.logger.debug(response.json())
         return response.json()
+    
+    def get_projects(self):
+        url = f"{self.base_url}/index.php?/api/v2/get_projects"
+        response = requests.get(url, auth=(self.user, self.api_key))
+        response.raise_for_status()
+        self.logger.debug(response.json())
+        return response.json()
 
-    def update_test_case(self, case_id, title=None, steps=None, custom_automation_type=None, section_id=None, preconditions=None, refs=None, priority_id=None, type_id=None, estimate=None, milestone_id=None):
+    def update_test_case(self, case_id, title=None, steps=None, custom_automation_type=None, custom_customer=None, custom_automatedby=None, section_id=None, preconditions=None, refs=None, priority_id=None, type_id=None, estimate=None, milestone_id=None):
         url = f"{self.base_url}/index.php?/api/v2/update_case/{case_id}"
         headers = {"Content-Type": "application/json"}
         
@@ -46,6 +81,8 @@ class TestRailApiManager:
             "section_id": section_id,
             "custom_steps": steps,
             "custom_automation_type": custom_automation_type,
+            "custom_customer": custom_customer,
+            "custom_automatedby": custom_automatedby,
             "custom_preconds": preconditions,
             "refs": refs,
             "priority_id": priority_id,
@@ -59,12 +96,12 @@ class TestRailApiManager:
             if value:
                 payload[key] = value
 
-        self.logger.info(f"Updating test case: {title} | Case ID: {case_id}")
+        self.logger.debug(f"Updating test case: {title} | Case ID: {case_id}")
         response = requests.post(
             url, json=payload, auth=(self.user, self.api_key), headers=headers
         )
         if response.status_code == 200:
-            self.logger.debug(f"TC updated: {title} | Case ID: C{case_id}")
+            self.logger.info(f"TC updated: {title} | Case ID: C{case_id}")
         else:
             self.logger.error(f"Failed to update test case: {title} | Case ID: C{case_id} | Status Code: {response.status_code} | Response: {response.text}")
             raise Exception(
@@ -96,21 +133,24 @@ class TestRailApiManager:
                 return suite
         return None
     
-    def add_run_to_plan(self, plan_id, suite_id, name, description=None, case_ids=None):
+    def add_run_to_plan(self, plan_id, suite_id, name, description=None, case_ids=None, milestone_id=None, assignedto_id=None, include_all=False, refs=None):
         url = f"{self.base_url}/index.php?/api/v2/add_plan_entry/{plan_id}"
         headers = {"Content-Type": "application/json"}
         data = {
             "suite_id": suite_id,
             "name": name,
             "description": description,
-            "include_all": False,
-            "case_ids": case_ids
+            "include_all": include_all,
+            "case_ids": case_ids,
+            "milestone_id": milestone_id,
+            "assignedto_id": assignedto_id,
+            "refs": refs
         }
-        self.logger.debug(f"Request Data: {data}")
+        self.logger.info(f"Request Data: {data}")
         response = requests.post(url, auth=(self.user, self.api_key), headers=headers, json=data)
         #response.raise_for_status()
         if response.status_code == 200:
-            self.logger.debug(f"Test run added to test plan: {name}")
+            self.logger.info(response.json())
             return response.json()
         else:
             self.logger.error(f"Failed to add test run to test plan: {name} | Status Code: {response.status_code} | Response: {response.text}")
@@ -130,3 +170,18 @@ class TestRailApiManager:
             raise Exception(
                 f"Failed to add results to test run: {response.status_code} {response.text}"
             )
+        
+    def get_user_by_email(self, email):
+        url = f"{self.base_url}/index.php?/api/v2/get_user_by_email&email={email}"
+        response = requests.get(url, auth=(self.user, self.api_key))
+        response.raise_for_status()
+        self.logger.debug(response.json())
+        return response.json()
+    
+    def get_current_user(self):
+        url = f"{self.base_url}/index.php?/api/v2/get_current_user/"
+        response = requests.get(url, auth=(self.user, self.api_key))
+        response.raise_for_status()
+        self.logger.debug(response.json())
+        return response.json()
+    

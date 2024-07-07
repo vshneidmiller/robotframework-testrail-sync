@@ -19,7 +19,7 @@ from robotestrail.testrail_utils import (
     get_section_by_name,
     add_folders_to_testrail,
     add_tests_to_testrail,
-    update_tests_in_testrail,
+    update_tests_in_testrail
 )
 
 from robotestrail.config import (
@@ -33,16 +33,7 @@ from robotestrail.config import (
     TESTRAIL_URL,
     TESTRAIL_USER,
     TESTRAIL_API_KEY,
-    MAX_WORKERS,
-    ROOT_TEST_SECTION_DISCLAIMER,
-    ORPHAN_TEST_SECTION_NAME,
-    ORPHAN_TEST_SECTION_DESCRIPTION,
-    TEST_PLAN_NAME,
-    TEST_PLAN_DESCRIPTION,
-    SOURCE_CONTROL_NAME,
-    SOURCE_CONTROL_LINK,
-    TESTRAIL_DEFAULT_TC_PRIORITY_ID,
-    TESTRAIL_DEFAULT_TC_TYPE_ID,
+    MAX_WORKERS
 )
 
 import concurrent.futures
@@ -63,7 +54,16 @@ def set_results_by_testrail_ids(config_path):
     test_syncer_by_id.set_results_by_id()
 
 
-def sync_robot_tests_to_testrail():
+def sync_robot_tests_to_testrail(config_path):
+    config = ConfigManager(config_path)
+    PROJECT_NAME = config.get_project_name()
+    TEST_SUITE_NAME = config.get_test_suite()
+    ROOT_TEST_SECTION_NAME = config.get_root_test_section_name()
+    PATH_TO_ROBOT_TESTS_FOLDER = config.get_robot_tests_folder_path()
+    SOURCE_CONTROL_LINK = config.get_source_control_link()
+    DEFAULT_PRIORITY_ID = config.get_default_priority_id()
+    DEFAULT_TYPE_ID = config.get_default_type_id()
+
     path = PATH_TO_ROBOT_TESTS_FOLDER
     # Get project and suite IDs
     project_id = get_project_by_name(PROJECT_NAME)["id"]
@@ -81,13 +81,13 @@ def sync_robot_tests_to_testrail():
     robot_tests = run_dryrun_and_get_tests(path, "dryrun_output.xml")
 
     # If a folder (.robot file or dir with the .robot file) exists locally but NOT in TestRail, then it will be added as section
-    add_folders_to_testrail(project_id, suite_id, robot_tests)
+    add_folders_to_testrail(project_id, suite_id, robot_tests, SOURCE_CONTROL_LINK)
 
     # Add tests to TestRail if they are missing
-    add_tests_to_testrail(project_id, suite_id, existing_tr_tests, robot_tests)
+    add_tests_to_testrail(project_id, suite_id, existing_tr_tests, robot_tests, DEFAULT_PRIORITY_ID, DEFAULT_TYPE_ID)
 
     # Update tests in TestRail if they are present
-    update_tests_in_testrail(project_id, suite_id, existing_tr_tests, robot_tests)
+    update_tests_in_testrail(project_id, suite_id, existing_tr_tests, robot_tests, DEFAULT_PRIORITY_ID, DEFAULT_TYPE_ID)
 
     # Move orphan tests to ORPHAN folder
     move_orphan_tests_to_orphan_folder(project_id, suite_id, robot_tests)
@@ -117,10 +117,10 @@ def add_new_test_results():
 def generate_csv():
     generate_csv_for_test_rail(PATH_TO_ROBOT_TESTS_FOLDER)
 
-def show_milestones(config_path):
+def show_info(config_path):
     config = ConfigManager(config_path)
     test_syncer = TestSyncManager(config)
-    test_syncer.show_milestones()
+    test_syncer.show_info()
 
 def create_config():
     print("Creating a new config file with the default values...")

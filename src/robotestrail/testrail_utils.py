@@ -1,6 +1,7 @@
 import os
 from collections import Counter
 import concurrent.futures
+from robotestrail.config_manager import ConfigManager
 
 from robotestrail.logging_config import setup_logging
 from robotestrail.robot_framework_utils import parse_robot_output_xml, get_rich_text_steps
@@ -30,14 +31,10 @@ from robotestrail.config import (
     TEST_PLAN_NAME,
     TEST_PLAN_DESCRIPTION,
     SOURCE_CONTROL_NAME,
-    SOURCE_CONTROL_LINK,
-    TESTRAIL_DEFAULT_TC_PRIORITY_ID,
-    TESTRAIL_DEFAULT_TC_TYPE_ID,
 )
 
 # Initialize the logger for this module
 logger = setup_logging()
-
 
 # Handlers
 def get_project_by_name(name):
@@ -98,7 +95,7 @@ def get_section_by_name_and_parent_id(project_id, suite_id, name, parent_id):
     return None
 
 
-def add_folders_to_testrail(project_id, suite_id, robot_tests):
+def add_folders_to_testrail(project_id, suite_id, robot_tests, source_control_link_root):
     # Function to add all intermediate paths
     def add_intermediate_paths(path, all_paths):
         parts = path.split(" > ")
@@ -111,10 +108,10 @@ def add_folders_to_testrail(project_id, suite_id, robot_tests):
         count = str(formatted_pathes).count(formatted_path)
         if count > 1:
             source_control_link = (
-                f"{SOURCE_CONTROL_LINK}/{str(formatted_path).replace(' > ', os.sep)}"
+                f"{source_control_link_root}/{str(formatted_path).replace(' > ', os.sep)}"
             )
         else:
-            source_control_link = f"{SOURCE_CONTROL_LINK}/{str(formatted_path).replace(' > ', os.sep)}.robot"
+            source_control_link = f"{source_control_link_root}/{str(formatted_path).replace(' > ', os.sep)}.robot"
         return source_control_link
 
     def get_parent_id_by_formatted_path(formatted_path):
@@ -257,26 +254,26 @@ def add_folders_to_testrail(project_id, suite_id, robot_tests):
     update_existing_sections()
 
 
-def parse_robot_test_tags(tags):
-    priority_id = TESTRAIL_DEFAULT_TC_PRIORITY_ID
-    type_id = TESTRAIL_DEFAULT_TC_TYPE_ID
+def parse_robot_test_tags(tags, default_priority_id, default_type_id):
+    priority_id = default_priority_id
+    type_id = default_type_id
     estimate = None
     milestone_id = None
     refs = []
 
     for tag in tags:
         tag = str(tag)
-        if tag.startswith("priority_id"):
+        if tag.startswith("priority_id:"):
             priority_id = int(tag.split(":")[1])
-        elif tag.startswith("type_id"):
+        elif tag.startswith("type_id:"):
             type_id = int(tag.split(":")[1])
-        elif tag.startswith("estimate"):
+        elif tag.startswith("estimate:"):
             estimate = tag.split(":")[1]
-        elif tag.startswith("milestone_id"):
+        elif tag.startswith("milestone_id:"):
             milestone_id = int(tag.split(":")[1])
-        elif tag.startswith("refs"):
+        elif tag.startswith("refs:"):
             refs.append(tag.split(":")[1])
-        elif tag.startswith("jira"):
+        elif tag.startswith("jira:"):
             jira_ticket_link = tag.split(":")[1]
             refs.append(jira_ticket_link)
 
@@ -285,7 +282,7 @@ def parse_robot_test_tags(tags):
     return priority_id, type_id, estimate, milestone_id, refs
 
 
-def add_tests_to_testrail(project_id, suite_id, existing_tr_tests, robot_tests):
+def add_tests_to_testrail(project_id, suite_id, existing_tr_tests, robot_tests, default_priority_id, default_type_id):
     # If the test with the particular name exists locally but NOT in the TestRail, then it will be added to the tests_to_add list
     tests_to_add = [
         test
@@ -296,7 +293,7 @@ def add_tests_to_testrail(project_id, suite_id, existing_tr_tests, robot_tests):
     tr_sections = get_sections_with_formatted_path(project_id, suite_id)
     # existing_tr_tests = tr_get_test_cases(project_id, suite_id)['cases']
 
-    def add_test(test):
+    def add_test(test, default_priority_id, default_type_id):
         section_id = next(
             (
                 s["id"]
@@ -308,7 +305,7 @@ def add_tests_to_testrail(project_id, suite_id, existing_tr_tests, robot_tests):
         steps = get_rich_text_steps(test["steps"])
         preconditions = f'**[Tags]**\n{str(test["tags"])}'
         priority_id, type_id, estimate, milestone_id, refs = parse_robot_test_tags(
-            test["tags"]
+            test["tags"], default_priority_id, default_type_id
         )
         tr_add_test_case(
             section_id,
@@ -322,12 +319,17 @@ def add_tests_to_testrail(project_id, suite_id, existing_tr_tests, robot_tests):
             milestone_id=milestone_id,
             preconditions=preconditions,
         )
+        logger.info(f"Test added: {test['title']}")
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
-        executor.map(add_test, tests_to_add)
+    #with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+    #    executor.map(add_test, tests_to_add)
+
+    #adding tests not in parallel
+    for test in tests_to_add:
+        add_test(test, default_priority_id, default_type_id)
 
 
-def update_tests_in_testrail(project_id, suite_id, existing_tr_tests, robot_tests):
+def update_tests_in_testrail(project_id, suite_id, existing_tr_tests, robot_tests, default_priority_id, default_type_id):
     # If the test with the particular name exists locally AND in the TestRail, then it will be added to the tests_to_update list
     tests_to_update = [
         test
@@ -337,7 +339,7 @@ def update_tests_in_testrail(project_id, suite_id, existing_tr_tests, robot_test
 
     tr_sections = get_sections_with_formatted_path(project_id, suite_id)
 
-    def update_test(test):
+    def update_test(test, default_priority_id, default_type_id):
         section_id = next(
             (
                 s["id"]
@@ -353,7 +355,7 @@ def update_tests_in_testrail(project_id, suite_id, existing_tr_tests, robot_test
         preconditions = f'**[Tags]**\n{str(test["tags"])}'
 
         priority_id, type_id, estimate, milestone_id, refs = parse_robot_test_tags(
-            test["tags"]
+            test["tags"], default_priority_id, default_type_id
         )
         tr_update_test_case(
             case_id,
@@ -369,8 +371,11 @@ def update_tests_in_testrail(project_id, suite_id, existing_tr_tests, robot_test
             milestone_id=milestone_id,
         )
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
-        executor.map(update_test, tests_to_update)
+    #with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+    #    executor.map(update_test, tests_to_update)
+    #updating tests not in parallel
+    for test in tests_to_update:
+        update_test(test, default_priority_id, default_type_id)
 
 
 def move_orphan_tests_to_orphan_folder(project_id, suite_id, robot_tests):

@@ -1,19 +1,11 @@
-import os
 import requests
-from collections import Counter
-import concurrent.futures
 
-import xml.etree.ElementTree as ET
 from robotestrail.logging_config import setup_logging
-from datetime import datetime
 from enum import Enum
 from robotestrail.robot_framework_utils import parse_robot_output_xml, get_rich_text_steps
 
 from robotestrail.config import (
-    TESTRAIL_URL, TESTRAIL_USER, TESTRAIL_API_KEY,
-    MAX_WORKERS, ROOT_TEST_SECTION_NAME, ROOT_TEST_SECTION_DISCLAIMER, ORPHAN_TEST_SECTION_NAME, 
-    ORPHAN_TEST_SECTION_DESCRIPTION, TEST_PLAN_NAME, TEST_PLAN_DESCRIPTION,
-    SOURCE_CONTROL_NAME, SOURCE_CONTROL_LINK, TESTRAIL_DEFAULT_TC_PRIORITY_ID, TESTRAIL_DEFAULT_TC_TYPE_ID
+    TESTRAIL_URL, TESTRAIL_USER, TESTRAIL_API_KEY, TESTRAIL_DEFAULT_TC_PRIORITY_ID, TESTRAIL_DEFAULT_TC_TYPE_ID
 )
 
 # Initialize the logger for this module
