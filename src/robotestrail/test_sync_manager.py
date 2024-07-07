@@ -1,11 +1,10 @@
-import re
 import os
+import csv
 from collections import Counter
 from robotestrail.logging_config import *
 from robotestrail.testrail_api_manager import TestRailApiManager
-from robotestrail.robot_framework_utils import run_dryrun_and_get_tests_with_additional_info, parse_robot_output_xml, add_additional_info_to_parsed_robot_tests, get_rich_text_steps
+from robotestrail.robot_framework_utils import run_dryrun_and_get_tests_with_additional_info, parse_robot_output_xml, add_additional_info_to_parsed_robot_tests
 from concurrent.futures import ThreadPoolExecutor
-from time import sleep
 from datetime import datetime
 import json
 
@@ -271,6 +270,99 @@ class TestSyncManager:
             "FAIL": 5,
         }
         return status_map.get(robot_status, 0)
+
+    
+    def generate_csv(self):
+        self.logger.info("Generating CSV file with test cases")
+        path_to_tests = self.config.get_robot_tests_folder_path()
+        robot_tests = run_dryrun_and_get_tests_with_additional_info(path_to_tests, 'dry_run_output.xml')
+        self.create_csv_file_for_tests(robot_tests['tests'])
+
+
+    def check(self):
+        self.logger.info("Checking the configuration, Robot Framework tests, and the TestRail connection")
+        pass
+
+#def check():
+#    errors = []
+#    warnings = []
+#
+#    def check_required_config_field(field_name, field, error, description):
+#        if not field:
+#            errors.append(
+#                {
+#                    "error": f"Required field is missing: {field}",
+#                    "description": description,
+#                }
+#            )
+#
+#    print(
+#        "Checking the config file, Robot Framework tests, and the TestRail connection... \n"
+#    )
+#    # check_required_config_field(TESTRAIL_URL, "TESTRAIL_URL", "TestRail URL is missing", "URL to the TestRail instance")
+#
+#    if TESTRAIL_URL == "not_set":
+#        errors.append(
+#            {
+#                "error": "Required config field is missing: TESTRAIL_URL",
+#                "description": "It should be something like: https://your-organization.testrail.com",
+#            }
+#        )
+#
+#    if TESTRAIL_USER == "not_set":
+#        errors.append(
+#            {
+#                "error": "Required config field is missing: TESTRAIL_USER",
+#                "description": "TestRail user name. Usually it's an email address. You can find it in your TestRail profile: Username > My Settings > Email Address. https://your-organization.testrail.com/index.php?/mysettings",
+#            }
+#        )
+#
+#    if TESTRAIL_API_KEY == "not_set" or TESTRAIL_API_KEY ==None:
+#        errors.append(
+#            {
+#                "error": "Required config field is missing: TESTRAIL_API_KEY",
+#                "description": "TestRail API key. You can create it in your TestRail profile: Username > My Settings > API Keys. https://your-organization.testrail.com/index.php?/mysettings . Then you have to export it as an environment variable. For example: export TESTRAIL_API_KEY=your_api_key (for Linux and MacOS). DON'T ADD THE API KEY DIRECTLY TO THE CONFIG FILE! Config file should contain only the name of the environment variable.",
+#            }
+#        )
+#    
+#    if PROJECT_NAME == "not_set":
+#        errors.append(
+#            {
+#                "error": "Required config field is missing: PROJECT_NAME",
+#                "description": "Name of the project in TestRail. The projects are listed on the main TestRail page: https://your-organization.testrail.com/",
+#            }
+#        )
+#    
+#    if TEST_SUITE_NAME == "not_set":
+#        errors.append(
+#            {
+#                "error": "Required config field is missing: TEST_SUITE_NAME",
+#                "description": "Name of the test suite in TestRail. The test suites are listed in the project",
+#            }
+#        )
+#    
+#    if MAX_WORKERS == -1:
+#        errors.append(
+#            {
+#                "error": "Required config field is missing: MAX_WORKERS",
+#                "description": "It is the number of max concurrent requests to the TestRail. It should be a positive integer. If you are not sure, set it to 1 or check with your TestRail admin.",
+#            }
+#        )
+#
+#    if ROOT_TEST_SECTION_NAME == "not_set":
+#        errors.append(
+#            {
+#                "error": "Required config field is missing: ROOT_TEST_SECTION_NAME",
+#                "description": "Name of the root test section in TestRail. It is the parent of all the test cases.",
+#            }
+#        )
+#
+#    
+#
+##    # required_fields = [TESTRAIL_URL, TESTRAIL_USER, TESTRAIL_API_KEY, PROJECT_NAME, TEST_SUITE_NAME, MAX_WORKERS, ROOT_TEST_SECTION_NAME, ROOT_TEST_SECTION_DISCLAIMER, ORPHAN_TEST_SECTION_NAME, ORPHAN_TEST_SECTION_DESCRIPTION, TEST_PLAN_NAME, TEST_PLAN_DESCRIPTION, TEST_RUN_NAME, TEST_RUN_DESCRIPTION, PATH_TO_ROBOT_TESTS_FOLDER, ROBOT_TEST_OUTPUT_XML_FILE_PATH, SOURCE_CONTROL_NAME, SOURCE_CONTROL_LINK, TESTRAIL_DEFAULT_TC_PRIORITY_ID, TESTRAIL_DEFAULT_TC_TYPE_ID]
+##
+
+
 
     def show_info(self):
         project_id = self.tr_api.get_project_id()
@@ -559,8 +651,8 @@ class TestSyncManager:
                 update_section(path)
 
         #write robot tests to file:
-        with open('robot_tests.json', 'w') as json_file:
-            json.dump(robot_tests, json_file, indent=4)
+        #with open('robot_tests.json', 'w') as json_file:
+        #    json.dump(robot_tests, json_file, indent=4)
         
         formatted_pathes = [test["formatted_path"] for test in robot_tests['tests']]
         # Process each path and add intermediate paths
@@ -620,6 +712,30 @@ class TestSyncManager:
         #adding tests not in parallel
         for test in tests_to_add:
             add_test(test)
+
+    def create_csv_file_for_tests(self, tests):
+        with open("test_cases.csv", "w", newline="", encoding="utf-8") as csvfile:
+            headers = [
+                "Title",
+                "Automation Type",
+                "Section",
+                "Steps",
+                "Section Description",
+            ]
+            writer = csv.DictWriter(csvfile, fieldnames=headers)
+            robot_tests = tests
+            writer.writeheader()
+            for test in robot_tests:
+                row = {
+                    "Title": test["title"],
+                    "Automation Type": self._get_custom_automation_type(test),
+                    "Section": test["formatted_path"],
+                    "Steps": test["rich_text_steps"],
+                    "Section Description": test["suite_documentation"],
+                }
+                writer.writerow(row)
+            self.logger.info("\nCSV file created successfully: test_cases.csv")
+
 
 
     def update_tests_in_testrail(self, project_id, suite_id, existing_tr_tests, robot_tests):
@@ -765,3 +881,4 @@ class TestSyncManager:
             if case["title"] == title:
                 return case["id"]
         return None
+    

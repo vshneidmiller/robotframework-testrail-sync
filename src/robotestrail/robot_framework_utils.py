@@ -1,13 +1,12 @@
 import os
 import re
-import csv
 from robot import run
 from robot.api import ExecutionResult, ResultVisitor
 from robotestrail.logging_config import setup_logging
-import json
 
 # Initialize the logger for this module
 logger = setup_logging()
+
 
 class TestSuiteVisitor(ResultVisitor):
     def __init__(self):
@@ -70,26 +69,28 @@ class TestSuiteVisitor(ResultVisitor):
 
 
 def parse_robot_output_xml(output_file):
-        result = ExecutionResult(output_file)
-        visitor = TestSuiteVisitor()
-        result.visit(visitor)
-        
-        #write to json
-        with open('test_cases.json', 'w') as json_file:
-            json.dump(visitor.test_cases, json_file, indent=4)
+    result = ExecutionResult(output_file)
+    visitor = TestSuiteVisitor()
+    result.visit(visitor)
 
-        return visitor.test_cases
+    # write to json
+    # with open('test_cases.json', 'w') as json_file:
+    #    json.dump(visitor.test_cases, json_file, indent=4)
+
+    return visitor.test_cases
+
 
 def run_robot_dryrun(output_file, path_to_tests):
-        run(
-            path_to_tests,
-            dryrun=True,
-            output=output_file,
-            log=None,
-            report=None,
-            stdout=None,
-            stderr=None,
-        )
+    run(
+        path_to_tests,
+        dryrun=True,
+        output=output_file,
+        log=None,
+        report=None,
+        stdout=None,
+        stderr=None,
+    )
+
 
 def run_dryrun_and_get_tests(path_to_tests, output_file):
     run_robot_dryrun(output_file, path_to_tests)
@@ -103,12 +104,13 @@ def run_dryrun_and_get_tests(path_to_tests, output_file):
 
     return test_cases
 
+
 def add_additional_info_to_parsed_robot_tests(robot_tests):
-    #add unique ID for each test case
+    # add unique ID for each test case
     for i, test in enumerate(robot_tests):
         test["id"] = i
 
-    #add rich text steps for each test case
+    # add rich text steps for each test case
     for test in robot_tests:
         test["rich_text_steps"] = get_rich_text_steps(test["steps"])
 
@@ -158,11 +160,10 @@ def add_additional_info_to_parsed_robot_tests(robot_tests):
 
         test["refs"] = ", ".join(refs) if refs else None
         test["defects"] = ", ".join(defects) if defects else None
-        test['estimate'] = estimate
-        test['milestone_id'] = milestone_id
-    
-    
-    #add tr_id to each test case with tag in format C123456
+        test["estimate"] = estimate
+        test["milestone_id"] = milestone_id
+
+    # add tr_id to each test case with tag in format C123456
     for test in robot_tests:
         tr_ids = []
         for tag in test["tags"]:
@@ -173,11 +174,11 @@ def add_additional_info_to_parsed_robot_tests(robot_tests):
     tests_with_multiple_tr_ids = []
     tests_with_one_tr_id = []
     tests_with_no_tr_id = []
-    
+
     for test in robot_tests:
         if "tr_ids" not in test:
             tests_with_no_tr_id.append(test)
-        
+
         if "tr_ids" in test:
             if len(test["tr_ids"]) == 1:
                 tests_with_one_tr_id.append(test)
@@ -191,23 +192,29 @@ def add_additional_info_to_parsed_robot_tests(robot_tests):
             for tr_id in test["tr_ids"]:
                 all_tr_ids.append(tr_id)
 
-    test_ids_of_tests_with_multiple_tr_ids = [t["id"] for t in tests_with_multiple_tr_ids]
+    test_ids_of_tests_with_multiple_tr_ids = [
+        t["id"] for t in tests_with_multiple_tr_ids
+    ]
     all_robot_test_ids = [t["id"] for t in robot_tests]
 
     test_ids_of_tests_with_tr_ids = [t["id"] for t in robot_tests if "tr_id" in t]
 
-    test_ids_of_tests_without_tr_ids = list(set(all_robot_test_ids) - set(test_ids_of_tests_with_tr_ids))
+    test_ids_of_tests_without_tr_ids = list(
+        set(all_robot_test_ids) - set(test_ids_of_tests_with_tr_ids)
+    )
     tests_without_tr_id = [t for t in robot_tests if not t["tr_ids"]]
 
-    
-    tests_with_additional_info = {"tests": robot_tests,
-                                  "multiple_tr_ids": test_ids_of_tests_with_multiple_tr_ids,
-                                  "no_tr_id": test_ids_of_tests_without_tr_ids,
-                                  "tests_with_multiple_tr_ids": tests_with_multiple_tr_ids,
-                                  "tests_without_tr_id": tests_without_tr_id,
-                                  "tests_with_one_tr_id": tests_with_one_tr_id,
-                                  "all_tr_ids": all_tr_ids}
+    tests_with_additional_info = {
+        "tests": robot_tests,
+        "multiple_tr_ids": test_ids_of_tests_with_multiple_tr_ids,
+        "no_tr_id": test_ids_of_tests_without_tr_ids,
+        "tests_with_multiple_tr_ids": tests_with_multiple_tr_ids,
+        "tests_without_tr_id": tests_without_tr_id,
+        "tests_with_one_tr_id": tests_with_one_tr_id,
+        "all_tr_ids": all_tr_ids,
+    }
     return tests_with_additional_info
+
 
 def run_dryrun_and_get_tests_with_additional_info(path_to_tests, output_file):
     robot_tests = run_dryrun_and_get_tests(path_to_tests, output_file)
@@ -234,33 +241,3 @@ def get_rich_text_steps(steps):
 
     # Join steps with a newline for better readability
     return "\n".join(rich_text_steps)
-
-
-def generate_csv(tests):
-    with open("test_cases.csv", "w", newline="", encoding="utf-8") as csvfile:
-        headers = [
-            "Title",
-            "Automation Type",
-            "Section",
-            "Steps",
-            "Section Description",
-        ]
-        writer = csv.DictWriter(csvfile, fieldnames=headers)
-        robot_tests = tests
-        writer.writeheader()
-        for test in robot_tests:
-            steps = get_rich_text_steps(test["steps"])
-            row = {
-                "Title": test["title"],
-                "Automation Type": "Automated",
-                "Section": test["formatted_path"],
-                "Steps": steps,
-                "Section Description": test["suite_documentation"],
-            }
-            writer.writerow(row)
-        print("\nCSV file created successfully: test_cases.csv")
-
-
-def generate_csv_for_test_rail(path):
-    tests = run_dryrun_and_get_tests(path, "dryrun_output.xml")
-    generate_csv(tests)
