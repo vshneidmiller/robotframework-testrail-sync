@@ -85,7 +85,7 @@ class ConfigManager:
         return self.config.get("test_run", {}).get("milestone_name", None)
 
     def get_test_run_assignedto_email(self):
-        return self.config["test_run"]["assignedto_email"]
+        return self.config.get("test_run", {}).get("assignedto_email", None)
 
     def get_test_run_include_all(self):
         return self.config.get("test_run", {}).get("include_all", False)
