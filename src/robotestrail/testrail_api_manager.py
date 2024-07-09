@@ -7,9 +7,12 @@ class TestRailApiManager:
     def __init__(self, config):
         self.logger =  setup_logging()
         self.config = config
-        self.base_url = self.config.get_config()['testrail']['url']
-        self.user = self.config.get_config()['testrail']['user']
-        self.api_key = os.getenv(self.config.get_config()['testrail']['api_key_env_var'])
+        self.base_url = self.config.get_testrail_url()
+        self.user = self.config.get_testrail_user()
+        try:
+            self.api_key = os.getenv(self.config.get_testrail_api_key_env_var())
+        except Exception as e:
+            self.logger.error(f"Error getting TestRail API key from environment variable: {e}")
         self.logger.debug("TestRailApiManager initialized")
 
     def get_project_id(self):
@@ -247,7 +250,7 @@ class TestRailApiManager:
         )
         if response.status_code == 200:
             section = response.json()
-            self.logger.info(f"Section updated: '{section_name}' | S{section['id']} | {section['description']}")
+            self.logger.debug(f"Section updated: '{section_name}' | S{section['id']} | {section['description']}")
             return section
         else:
             raise Exception(
@@ -288,7 +291,7 @@ class TestRailApiManager:
         response = requests.post(url, auth=(self.user, self.api_key), headers=headers, json=data)
         if response.status_code == 200:
             case = response.json()
-            self.logger.info(f"Test case added: '{title}' | C{case['id']}")
+            self.logger.debug(f"Test case added: '{title}' | C{case['id']}")
             return case
         else:
             raise Exception(

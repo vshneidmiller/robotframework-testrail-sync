@@ -17,6 +17,15 @@ class ConfigManager:
 
     def get_config(self):
         return self.config
+    
+    def get_testrail_url(self):
+        return self.config.get("testrail", {}).get("url", None)
+    
+    def get_testrail_user(self):
+        return self.config.get("testrail", {}).get("user", None)
+
+    def get_testrail_api_key_env_var(self):
+        return self.config.get("testrail", {}).get("api_key_env_var", None)
 
     def get_robot_tests_folder_path(self):
         return self.config["paths"]["tests_folder"]

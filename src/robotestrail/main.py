@@ -11,8 +11,7 @@ import argparse
 
 
 # Initialize logging
-logger = setup_logging()
-
+#logger = setup_logging()
 
 def main():
 
