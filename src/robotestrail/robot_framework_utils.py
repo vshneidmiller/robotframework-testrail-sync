@@ -151,6 +151,7 @@ def add_additional_info_to_parsed_robot_tests(robot_tests):
                     refs.append(tag.split(":")[1])
                 elif tag.startswith("jira:"):
                     refs.append(tag.split(":")[1])
+                    defects.append(tag.split(":")[1])
                 elif tag.startswith("defect:"):
                     defects.append(tag.split(":")[1])
                 elif tag.startswith("bug:"):
