@@ -18,6 +18,8 @@ class TestSyncManager:
         self.logger = setup_logging()
         self.config = config
         self.tr_api = TestRailApiManager(config)
+        self.project_id = self.tr_api.get_project_id()
+        self.milestones = self.tr_api.get_milestones(self.project_id)['milestones']
 
         try:
             self.case_types = self.tr_api.get_case_types()
@@ -140,7 +142,7 @@ class TestSyncManager:
 
     def add_new_test_results_by_name(self):
         self.logger.info("Adding new test results to TestRail by name")
-        project_id = self.tr_api.get_project_id()
+        project_id = self.project_id
         suite_id = self.tr_api.get_tr_suite_by_name(
             project_id, self.config.get_test_suite()
         )["id"]
@@ -168,7 +170,7 @@ class TestSyncManager:
         self.logger.info("Syncing robot tests with the TestRail by name")
         path_to_tests = self.config.get_robot_tests_folder_path()
         root_section_name = self.config.get_root_test_section_name()
-        project_id = self.tr_api.get_project_id()
+        project_id = self.project_id
         suite_id = self.tr_api.get_tr_suite_by_name(
             project_id, self.config.get_test_suite()
         )["id"]
@@ -231,7 +233,7 @@ class TestSyncManager:
 
     def set_results_by_id(self):
         self.logger.info("Starting sety tests rusults by id process")
-        project_id = self.tr_api.get_project_id()
+        project_id = self.project_id
         self.logger.info(f"Project ID: {project_id}")
         path_to_tests = self.config.get_robot_tests_folder_path()
 
@@ -591,7 +593,7 @@ class TestSyncManager:
             custom_customer=test.get("custom_customer"),
             custom_automation_type=self._get_custom_automation_type(test),
             custom_automatedby=self._get_automatedby_id(test),
-            milestone_id=test.get("milestone_id"),
+            milestone_id=self._get_milestone_id(test),
             type_id=self._get_type_id(test),
             priority_id=self._get_priority_id(test),
         )
@@ -636,6 +638,30 @@ class TestSyncManager:
             )
 
         return None
+
+
+    def _get_milestone_id(self, test):
+        if test.get("milestone_id"):
+            return test["milestone_id"]
+
+        if test.get("milestone"):
+            return self._get_milestone_id_by_name(test["milestone"])
+        
+        if self.config.get_milestone_id():
+            return self.config.get_milestone_id()
+        
+        if self.config.get_milestone():
+            return self._get_milestone_id_by_name(self.config.get_milestone())
+        
+        return None
+    
+    def _get_milestone_id_by_name(self, name):
+        milestones = self.milestones
+        for milestone in milestones:
+            if milestone["name"] == name:
+                return milestone["id"]
+        return None
+    
 
     def _get_automatedby_id(self, test):
         if test.get("custom_automatedby_id"):

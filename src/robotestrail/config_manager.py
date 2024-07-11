@@ -45,6 +45,12 @@ class ConfigManager:
     def get_default_priority(self):
         return self.config.get("testrail_defaults", {}).get("priority", None)
 
+    def get_milestone(self):
+        return self.config.get("testrail_defaults", {}).get("milestone", None)
+    
+    def get_milestone_id(self):
+        return self.config.get("testrail_defaults", {}).get("milestone_id", None)
+
     def get_project_name(self):
         return self.config["project"]["name"]
 
@@ -122,3 +128,4 @@ class ConfigManager:
 
     def get_source_control_link(self):
         return self.config.get("source_control", {}).get("link", None)
+

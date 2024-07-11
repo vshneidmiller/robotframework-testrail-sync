@@ -68,6 +68,13 @@ class TestRailApiManager:
         self.logger.debug(response.json())
         return response.json()
     
+    def get_milestone_id_by_name(self, project_id, name):
+        milestones = self.get_milestones(project_id)["milestones"]
+        for milestone in milestones:
+            if milestone["name"] == name:
+                return milestone["id"]
+        return None
+    
     def get_projects(self):
         url = f"{self.base_url}/index.php?/api/v2/get_projects"
         response = requests.get(url, auth=(self.user, self.api_key))

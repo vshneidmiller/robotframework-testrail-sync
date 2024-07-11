@@ -123,13 +123,12 @@ def add_additional_info_to_parsed_robot_tests(robot_tests):
         refs = []
         defects = []
         estimate = None
-        milestone_id = None
         for tag in test["tags"]:
             try:
                 tag = str(tag)
                 if tag.startswith("priority_id:"):
                     test["priority_id"] = int(tag.split(":")[1])
-                if tag.startswith("priority:"):
+                elif tag.startswith("priority:"):
                     test["priority"] = tag.split(":")[1]
                 elif tag.startswith("type_id:"):
                     test["type_id"] = int(tag.split(":")[1])
@@ -145,8 +144,10 @@ def add_additional_info_to_parsed_robot_tests(robot_tests):
                     test["custom_automatedby_id"] = int(tag.split(":")[1])
                 elif tag.startswith("customer:"):
                     test["custom_customer"] = int(tag.split(":")[1])
+                elif tag.startswith("milestone:"):
+                    test["milestone"] = tag.split(":")[1]
                 elif tag.startswith("milestone_id:"):
-                    milestone_id = int(tag.split(":")[1])
+                    test["milestone_id"] = int(tag.split(":")[1])
                 elif tag.startswith("refs:"):
                     refs.append(tag.split(":")[1])
                 elif tag.startswith("jira:"):
@@ -162,7 +163,6 @@ def add_additional_info_to_parsed_robot_tests(robot_tests):
         test["refs"] = ", ".join(refs) if refs else None
         test["defects"] = ", ".join(defects) if defects else None
         test["estimate"] = estimate
-        test["milestone_id"] = milestone_id
 
     # add tr_id to each test case with tag in format C123456
     for test in robot_tests:
