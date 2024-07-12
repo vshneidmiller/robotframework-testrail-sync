@@ -10,9 +10,6 @@ from robotestrail.logging_config import setup_logging
 import argparse
 
 
-# Initialize logging
-#logger = setup_logging()
-
 def main():
 
     parser = argparse.ArgumentParser(
@@ -41,8 +38,9 @@ def main():
     )
     parser.add_argument(
         "--csv",
+        "-csv",
         action="store_true",
-        help="Generate a CSV file withe the text cases. This CSV file can be imported to TestRail.",
+        help="Generate a CSV file with the test cases. This CSV file can be imported to TestRail.",
     )
     parser.add_argument(
         "--info",

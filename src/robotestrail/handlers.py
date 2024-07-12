@@ -1,5 +1,6 @@
 from robotestrail.config_manager import ConfigManager
 from robotestrail.test_sync_manager import TestSyncManager
+from robotestrail.csv_generator import CsvGenerator
 
 
 def sync_robot_tests_to_testrail_by_ids(config_path):
@@ -28,8 +29,8 @@ def add_new_test_results_by_name(config_path):
 
 def generate_csv(config_path):
     config = ConfigManager(config_path)
-    test_syncer = TestSyncManager(config)
-    test_syncer.generate_csv()
+    csv_generator = CsvGenerator(config)
+    csv_generator.generate_csv()
 
 
 def show_info(config_path):
