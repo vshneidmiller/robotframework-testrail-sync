@@ -17,7 +17,7 @@ class TestSyncManager:
     def __init__(self, config):
         self.logger = setup_logging()
         self.config = config
-        self.tr_api = TestRailApiManager(config)
+        self.tr_api = TestRailApiManager(self.config)
         self.project_id = self.tr_api.get_project_id()
         self.milestones = self.tr_api.get_milestones(self.project_id)['milestones']
 
@@ -244,8 +244,17 @@ class TestSyncManager:
         output_file_path = self.config.get_robot_output_xml_file_path()
         robot_tests = parse_robot_output_xml(output_file_path)
         robot_tests = add_additional_info_to_parsed_robot_tests(robot_tests)
-        test_plan = self.tr_api.get_tr_test_plan_by_name(
-            project_id, self.config.get_test_plan_name()
+        #test_plan = self.tr_api.get_tr_test_plan_by_name(
+        #    project_id, self.config.get_test_plan_name()
+        #)
+
+        milestone_id = self.tr_api.get_milestone_id_by_name(project_id, self.config.get_test_plan_milestone_name())
+
+        test_plan = self.tr_api.add_plan(
+            project_id, 
+            f"{self.config.get_test_plan_name()} | {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+            self.config.get_test_plan_description(),
+            milestone_id=milestone_id
         )
 
         # add test run to test plan

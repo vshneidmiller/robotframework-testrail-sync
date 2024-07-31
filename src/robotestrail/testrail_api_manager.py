@@ -124,6 +124,25 @@ class TestRailApiManager:
         response.raise_for_status()
         self.logger.debug(response.json())
         return response.json()
+    
+    def add_plan(self, project_id, name, description=None, milestone_id=None, entries=None):
+        url = f"{self.base_url}/index.php?/api/v2/add_plan/{project_id}"
+        headers = {"Content-Type": "application/json"}
+        data = {
+            "name": name,
+            "description": description,
+            "milestone_id": milestone_id,
+            "entries": entries
+        }
+        response = requests.post(url, auth=(self.user, self.api_key), headers=headers, json=data)
+        if response.status_code == 200:
+            self.logger.info(f"Test plan created: {name}")
+            return response.json()
+        else:
+            self.logger.error(f"Failed to create test plan: {name} | Status Code: {response.status_code} | Response: {response.text}")
+            raise Exception(
+                f"Failed to create test plan: {response.status_code} {response.text}"
+            )
 
 
     def get_tr_test_plan_by_name(self, project_id, name):
